@@ -152,6 +152,10 @@ class Rect
         this.h = h;
     }
 
+    scale(x, y) {
+        return new Rect(this.x * x, this.y * y, this.w * x, this.h * y);
+    }
+
     static parse(str) {
         return new Rect(...str.trim().split(",").map((s) => parseFloat(s)));
     }

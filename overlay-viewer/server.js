@@ -11,7 +11,12 @@ const mimeMap = {
     ".png": "image/png",
     ".jpg": "image/jpg",
     ".wav": "audio/wav",
-    ".html": "text/html"
+    ".html": "text/html",
+    ".ico": "image/x-icon",
+    ".mp3": "audio/mpeg",
+    ".svg": "image/svg+xml",
+    ".pdf": "application/pdf",
+    ".doc": "application/msword"
 };
 function getContentType(filename) {
     const extname = path.extname(filename);
@@ -44,11 +49,11 @@ const server = http.createServer(async (req, res) => {
         return sendStatusMessage(res, 404, "File Not Found");
     }
 
-    return fs.readFile(filepath, "utf8")
+    return fs.readFile(filepath)
         .then((filedata) => {
             const contentType = getContentType(filepath);
             res.writeHead(200, { "Content-Type": contentType });
-            res.end(filedata, "utf8");
+            res.end(filedata);
         }).catch((err) => {
             if(err.code === "ENOENT") {
                 sendStatusMessage(res, 404, "File Not Found");

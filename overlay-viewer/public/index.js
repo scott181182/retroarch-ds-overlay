@@ -84,6 +84,7 @@ function renderOverlays() {
     activeOverlay = overlays[activeOverlayIndex];
     renderOverlay(activeOverlay);
 }
+/** @param {Overlay} overlay */
 function renderOverlay(overlay)
 {
     const canvas = document.getElementById("overlay-canvas");
@@ -92,6 +93,17 @@ function renderOverlay(overlay)
     canvas.style.height = `${canvas.clientWidth / overlay.aspectRatio}px`;
 
     // TODO: handle overlay properties.
+    if(overlay.image) {
+        const img = document.createElement("img");
+        img.src = `/api/${currentTemplate}/${overlay.image}`;
+        img.style.position = "absolute";
+        const imgRect = overlay.imageRect.scale(canvas.clientWidth, canvas.clientHeight);
+        img.style.left   = `${imgRect.x}px`;
+        img.style.top    = `${imgRect.y}px`;
+        img.style.width  = `${imgRect.width}px`;
+        img.style.height = `${imgRect.height}px`;
+        canvas.appendChild(img);
+    }
 
     for(let i = 0; i < overlay.descriptors.length; i++) {
         const desc = overlay.descriptors[i];
@@ -104,6 +116,15 @@ function renderOverlay(overlay)
         div.style.top    = `${center.y - range.y}px`;
         div.style.width  = `${range.x * 2}px`;
         div.style.height = `${range.y * 2}px`;
+
+        if(desc.image) {
+            const img = document.createElement("img");
+            img.src = `/api/${currentTemplate}/${desc.image}`;
+            img.style.width  = "100%";
+            img.style.height = "100%";
+            div.appendChild(img);
+        }
+
         div.className = "descriptor"
         div.id = `overlay0_desc${i}`;
 
