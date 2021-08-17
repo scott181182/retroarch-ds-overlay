@@ -113,6 +113,10 @@ function renderActiveOverlay()
         div.style.width  = `${range.x * 2}px`;
         div.style.height = `${range.y * 2}px`;
 
+        if(desc.hitbox === "radial") {
+            div.style.borderRadius = "50%";
+        }
+
         if(desc.image) {
             const img = document.createElement("img");
             img.src = `/api/${currentTemplate}/${desc.image}`;
@@ -121,26 +125,35 @@ function renderActiveOverlay()
             div.appendChild(img);
         }
 
-        if(desc.nextTarget) {
-            div.onclick = (_ev) => {
-                console.log(`Next Layout: ${desc.nextTarget}`);
-                activeOverlayIndex = overlays.findIndex((ov) => ov.name === desc.nextTarget);
-                if(activeOverlayIndex < 0) {
-                    console.error(`Cannot find overlay for '${desc.nextTarget}'`);
-                    return;
-                }
-                activeOverlay = overlays[activeOverlayIndex];
-                renderActiveOverlay();
-            };
-        } else {
-            div.onclick = (_ev) => {
-                console.log(`Button: ${desc.button}`);
-            };
-        }
+        div.addEventListener("click", (ev) => {
+            // if(desc.hitbox === "rect") { ev.stopPropagation(); }
+            // else if(desc.hitbox === "radial") {
+            //     // Check if click was in radius
+            //     const mx = ev.layerX - range.x;
+            //     const my = ev.layerY - range.y;
+            //     const d2 = Math.pow(mx / range.x, 2) + Math.pow(my / range.y, 2);
+            //     console.log(mx, my, d2);
+            //     if(d2 <= 1) { ev.stopPropagation(); }
+            //     else { return; }
+            // }
+
+            if(desc.nextTarget) { switchOverlay(desc.nextTarget); }
+            else { console.log(`Button: ${desc.button}`); }
+        });
 
         div.className = "descriptor"
         div.id = `overlay0_desc${i}`;
 
         canvas.appendChild(div);
     }
+}
+function switchOverlay(name) {
+    console.log(`Next Layout: ${name}`);
+    activeOverlayIndex = overlays.findIndex((ov) => ov.name === name);
+    if(activeOverlayIndex < 0) {
+        console.error(`Cannot find overlay for '${name}'`);
+        return;
+    }
+    activeOverlay = overlays[activeOverlayIndex];
+    renderActiveOverlay();
 }
