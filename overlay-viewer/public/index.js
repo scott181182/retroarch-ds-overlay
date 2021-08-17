@@ -6,11 +6,13 @@ const editor = ace.edit("config-source");
 editor.setTheme("ace/theme/github");
 editor.session.setMode("ace/mode/toml");
 
-editor.on("change", renderOverlays);
-let currentTemplate = "";
+editor.on("change", () => compileOverlays(editor.getValue()));
+let currentTemplate = undefined;
+/** @type {Overlay[] & { template: string }} */
 let overlays = [];
 let activeOverlayIndex = -1;
-let activeOverlay = undefined;
+/** @type {Overlay | null} */
+let activeOverlay = null;
 
 
 const templates = [ "neo-retropad" ];
@@ -19,6 +21,7 @@ document.getElementById("form-template").addEventListener("input", (ev) => {
     if(templates.includes(value)) {
         loadTemplate(value);
     } else {
+        currentTemplate = undefined;
         // Empty editor
         editor.setValue("", 0);
     }
@@ -32,7 +35,7 @@ async function loadTemplate(name) {
 }
 
 function parseOverlay(src) {
-    const obj = {  };
+    const obj = { overlays: 0 };
     const lines = src.split(/[\r\n]+/);
     for(const line of lines) {
         if(!line || line.startsWith("#")) { continue; }
@@ -54,17 +57,20 @@ function parseOverlayValue(src) {
     console.warn(`Cannot parse overlay value: ${src}`);
     return null;
 }
-function compileOverlay(src) {
+function compileOverlays(src) {
     const obj = parseOverlay(src);
 
     /** @type {Overlay[] & { template: string }} */
-    const overlays = new Array(obj.overlays);
+    overlays = new Array(obj.overlays);
     for(let i = 0; i < obj.overlays; i++) {
         overlays[i] = Overlay.parse(obj, i);
     }
     overlays.template = currentTemplate;
+    console.log(overlays);
 
-    return overlays;
+    activeOverlayIndex = 0;
+    activeOverlay = overlays[activeOverlayIndex];
+    renderActiveOverlay();
 }
 
 
@@ -74,30 +80,20 @@ const overlay2screen = (coord) => ({
     y: coord.y * document.getElementById("overlay-canvas").clientHeight
 });
 
-function renderOverlays() {
-    overlays = compileOverlay(editor.getValue());
-    console.log(overlays);
-
-    if(overlays.length === 0) { return; }
-
-    activeOverlayIndex = 0;
-    activeOverlay = overlays[activeOverlayIndex];
-    renderOverlay(activeOverlay);
-}
-/** @param {Overlay} overlay */
-function renderOverlay(overlay)
+function renderActiveOverlay()
 {
     const canvas = document.getElementById("overlay-canvas");
     canvas.innerHTML = "";
+    if(!activeOverlay) { return; }
 
-    canvas.style.height = `${canvas.clientWidth / overlay.aspectRatio}px`;
+    canvas.style.height = `${canvas.clientWidth / activeOverlay.aspectRatio}px`;
 
     // TODO: handle overlay properties.
-    if(overlay.image) {
+    if(activeOverlay.image) {
         const img = document.createElement("img");
-        img.src = `/api/${currentTemplate}/${overlay.image}`;
+        img.src = `/api/${currentTemplate}/${activeOverlay.image}`;
         img.style.position = "absolute";
-        const imgRect = overlay.imageRect.scale(canvas.clientWidth, canvas.clientHeight);
+        const imgRect = activeOverlay.imageRect.scale(canvas.clientWidth, canvas.clientHeight);
         img.style.left   = `${imgRect.x}px`;
         img.style.top    = `${imgRect.y}px`;
         img.style.width  = `${imgRect.width}px`;
@@ -105,8 +101,8 @@ function renderOverlay(overlay)
         canvas.appendChild(img);
     }
 
-    for(let i = 0; i < overlay.descriptors.length; i++) {
-        const desc = overlay.descriptors[i];
+    for(let i = 0; i < activeOverlay.descriptors.length; i++) {
+        const desc = activeOverlay.descriptors[i];
 
         const div = document.createElement("div");
         div.style.position = "absolute";
@@ -123,6 +119,23 @@ function renderOverlay(overlay)
             img.style.width  = "100%";
             img.style.height = "100%";
             div.appendChild(img);
+        }
+
+        if(desc.nextTarget) {
+            div.onclick = (_ev) => {
+                console.log(`Next Layout: ${desc.nextTarget}`);
+                activeOverlayIndex = overlays.findIndex((ov) => ov.name === desc.nextTarget);
+                if(activeOverlayIndex < 0) {
+                    console.error(`Cannot find overlay for '${desc.nextTarget}'`);
+                    return;
+                }
+                activeOverlay = overlays[activeOverlayIndex];
+                renderActiveOverlay();
+            };
+        } else {
+            div.onclick = (_ev) => {
+                console.log(`Button: ${desc.button}`);
+            };
         }
 
         div.className = "descriptor"
