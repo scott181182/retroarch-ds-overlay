@@ -15,7 +15,7 @@ let activeOverlayIndex = -1;
 let activeOverlay = null;
 
 
-const templates = [ "neo-retropad" ];
+const templates = [ "neo-retropad", "ds-retropad" ];
 document.getElementById("form-template").addEventListener("input", (ev) => {
     const value = ev.target.value;
     if(templates.includes(value)) {
@@ -27,6 +27,16 @@ document.getElementById("form-template").addEventListener("input", (ev) => {
     }
 });
 
+document.getElementById("refresh-btn").addEventListener("click", () => {
+    if(currentTemplate) {
+        loadTemplate(currentTemplate);
+    }
+});
+
+
+
+
+
 async function loadTemplate(name) {
     const res = await fetch(`/api/${name}/${name}.cfg`);
     const cfg = await res.text();
@@ -34,44 +44,19 @@ async function loadTemplate(name) {
     editor.setValue(cfg, 0);
 }
 
-function parseOverlay(src) {
-    const obj = { overlays: 0 };
-    const lines = src.split(/[\r\n]+/);
-    for(const line of lines) {
-        if(!line || line.startsWith("#")) { continue; }
-        // console.log(line);
-        const [key, value] = line.split(/\s*=\s*/);
-        obj[key] = parseOverlayValue(value);
-    }
-    return obj;
-}
-function parseOverlayValue(src) {
-    src = src.trim();
-    if(src === "true")  { return true; }
-    if(src === "false") { return false; }
-    if(/^\d+$/.test(src)) { return parseInt(src); }
-    if(/^(\d+\.\d*|\.\d+)$/.test(src)) { return parseFloat(src); }
-    if(src.startsWith("\"")) {
-        return src.substring(1, src.length - 1);
-    }
-    console.warn(`Cannot parse overlay value: ${src}`);
-    return null;
-}
 function compileOverlays(src) {
-    const obj = parseOverlay(src);
-
-    /** @type {Overlay[] & { template: string }} */
-    overlays = new Array(obj.overlays);
-    for(let i = 0; i < obj.overlays; i++) {
-        overlays[i] = Overlay.parse(obj, i);
-    }
-    overlays.template = currentTemplate;
+    const config = OverlayConfig.parse(src);
+    overlays = config.toOverlays(currentTemplate);
     console.log(overlays);
 
-    activeOverlayIndex = 0;
+    if(activeOverlayIndex < 0 || activeOverlayIndex >= overlays.length) {
+        activeOverlayIndex = 0;
+    }
     activeOverlay = overlays[activeOverlayIndex];
     renderActiveOverlay();
 }
+
+
 
 
 
@@ -80,6 +65,8 @@ const overlay2screen = (coord) => ({
     y: coord.y * document.getElementById("overlay-canvas").clientHeight
 });
 
+
+
 function renderActiveOverlay()
 {
     const canvas = document.getElementById("overlay-canvas");
@@ -87,6 +74,7 @@ function renderActiveOverlay()
     if(!activeOverlay) { return; }
 
     canvas.style.height = `${canvas.clientWidth / activeOverlay.aspectRatio}px`;
+    appendDSBoxes(canvas);
 
     // TODO: handle overlay properties.
     if(activeOverlay.image) {
@@ -156,4 +144,40 @@ function switchOverlay(name) {
     }
     activeOverlay = overlays[activeOverlayIndex];
     renderActiveOverlay();
+}
+
+const DS_ASPECT_RATIO = 4/3;
+/** @param {HTMLDivElement} canvas */
+function appendDSBoxes(canvas) {
+    const topDiv = document.createElement("div");
+    topDiv.className = "ds-screen ds-screen-top";
+    topDiv.style.position = "absolute";
+    const botDiv = document.createElement("div");
+    botDiv.className = "ds-screen ds-screen-bottom";
+    botDiv.style.position = "absolute";
+
+    let width, height;
+    if(canvas.clientWidth < canvas.clientHeight) {
+        width = canvas.clientWidth;
+        height = width / DS_ASPECT_RATIO;
+        
+        topDiv.style.left = "0";
+        botDiv.style.left = "0";
+    } else {
+        height = canvas.clientHeight / 2;
+        width = height * DS_ASPECT_RATIO;
+        
+        topDiv.style.left = `${(canvas.clientWidth - width) / 2}px`;
+        botDiv.style.left = `${(canvas.clientWidth - width) / 2}px`;
+    }
+    
+    topDiv.style.top = "0";
+    topDiv.style.width  = `${width}px`;
+    topDiv.style.height = `${height}px`;
+    botDiv.style.top    = `${height}px`;
+    botDiv.style.width  = `${width}px`;
+    botDiv.style.height = `${height}px`;
+
+    canvas.appendChild(topDiv);
+    canvas.appendChild(botDiv);
 }

@@ -1,12 +1,66 @@
 
 
-// class Overlays extends Array
-// {
 
-// }
+class OverlayConfig
+{
+    constructor(obj)
+    {
+        this.data = obj;
+    }
+
+    has(key) { return key in this.data; }
+    get(key) { return this.data[key]; }
+    set(key, value) { this.data[key] = value; }
+    delete(key) { delete this.data[key]; }
+
+    toOverlays(template) {
+        /** @type {Overlay[] & { template: string }} */
+        const overlays = new Array(this.data.overlays);
+        for(let i = 0; i < this.data.overlays; i++) {
+            overlays[i] = Overlay.parse(this.data, i);
+        }
+        overlays.template = template;
+        return overlays;
+    }
+    merge(config) {
+        this.data = { ...this.data, ...config.data };
+    }
+
+
+    
+    static parse(src) {
+        const obj = { overlays: 0 };
+        const lines = src.split(/[\r\n]+/);
+        for(const line of lines) {
+            if(!line || line.startsWith("#")) { continue; }
+            // console.log(line);
+            const [key, value] = line.split(/\s*=\s*/);
+            obj[key] = OverlayConfig.parseConfigValue(value);
+        }
+        return new OverlayConfig(obj);
+    }
+
+    static parseConfigValue(valueString) {
+        valueString = valueString.trim();
+        if(valueString === "true")  { return true; }
+        if(valueString === "false") { return false; }
+        if(/^\d+$/.test(valueString)) { return parseInt(valueString); }
+        if(/^(\d+\.\d*|\.\d+)$/.test(valueString)) { return parseFloat(valueString); }
+        if(valueString.startsWith("\"")) {
+            return valueString.substring(1, valueString.length - 1);
+        }
+        console.warn(`Cannot parse overlay value: ${valueString}`);
+        return null;
+    }
+}
+
+
 
 class Overlay
 {
+    static DEFAULT = new Overlay();
+
+
     constructor() {
         /** @type {string|null} */
         this.name = null;
@@ -65,9 +119,36 @@ class Overlay
 
         return overlay;
     }
+
+
+
+    toConfig(index) {
+        const config = new OverlayConfig({  });
+
+        if(this.name !== Overlay.DEFAULT.name) { config.set(`overlay${index}_name`, this.name); }
+
+        if(this.aspectRatio !== Overlay.DEFAULT.aspectRatio) { config.set(`overlay${index}_aspect_ratio`, this.aspectRatio); }
+        if(this.blockXSeparation !== Overlay.DEFAULT.blockXSeparation) { config.set(`overlay${index}_block_x_separation`, this.blockXSeparation); }
+        if(this.blockYSeparation !== Overlay.DEFAULT.blockYSeparation) { config.set(`overlay${index}_block_y_separation`, this.blockYSeparation); }
+
+        if(this.image !== Overlay.DEFAULT.image) { config.set(`overlay${index}_overlay`, this.image); }
+        if(this.imageRect !== Overlay.DEFAULT.imageRect) { config.set(`overlay${index}_rect`, this.imageRect); }
+        if(this.fullscreen !== Overlay.DEFAULT.fullscreen) { config.set(`overlay${index}_full_screen`, this.fullscreen); }
+        if(this.normalized !== Overlay.DEFAULT.normalized) { config.set(`overlay${index}_normalized`, this.normalized); }
+
+        if(this.alphaMod !== Overlay.DEFAULT.alphaMod) { config.set(`overlay${index}_alpha_mod`, this.alphaMod); }
+        if(this.rangeMod !== Overlay.DEFAULT.rangeMod) { config.set(`overlay${index}_range_mod`, this.rangeMod); }
+        
+        config.set(`overlay${index}_descs`, this.descriptors.length);
+        for(let i = 0; i < this.descriptors.length; i++) {
+            config.merge(this.descriptors[i].toConfig(this, index, i));
+        }
+    }
 }
 class OverlayDescriptor
 {
+    static DEFAULT = new OverlayDescriptor();
+
     /**
      * @param {string} button
      * @param {number} x
@@ -140,6 +221,26 @@ class OverlayDescriptor
         desc.alphaMod = parent.alphaMod;
         desc.rangeMod = parent.rangeMod;
         return desc;
+    }
+
+
+    toConfig(parent, parentIndex, index) {
+        const config = new OverlayConfig({  });
+        const hasImportantValue = (key) => this.saturation !== OverlayDescriptor.DEFAULT[key] && this.saturation !== parent[key]
+
+        config.set(`overlay${parentIndex}_desc${index}`, `${this.button},${this.x},${this.y},${this.hitbox},${this.rx},${this.ry}`);
+
+        if(hasImportantValue("saturation")) { config.set(`overlay${parentIndex}_desc${index}_pct`, this.saturation); }
+
+        if(hasImportantValue("image")) { config.set(`overlay${parentIndex}_desc${index}_overlay`, this.image); }
+        if(hasImportantValue("moveable")) { config.set(`overlay${parentIndex}_desc${index}_moveable`, this.moveable); }
+        if(hasImportantValue("normalized")) { config.set(`overlay${parentIndex}_desc${index}_normalized`, this.normalized); }
+
+        if(hasImportantValue("alphaMod")) { config.set(`overlay${parentIndex}_desc${index}_alpha_mod`, this.alphaMod); }
+        if(hasImportantValue("rangeMod")) { config.set(`overlay${parentIndex}_desc${index}_range_mod`, this.rangeMod); }
+        if(hasImportantValue("nextTarget")) { config.set(`overlay${parentIndex}_desc${index}_next_target`, this.nextTarget); }
+
+        return config;
     }
 }
 

@@ -22,16 +22,29 @@ function getContentType(filename) {
     const extname = path.extname(filename);
     return extname in mimeMap ? mimeMap[extname] : "text/plain";
 }
+
+
+
+const templates = [ "neo-retropad", "ds-retropad" ];
 function getFilePath(reqUrl) {
     if(reqUrl.endsWith("/")) { reqUrl += "index.html"; }
     if(reqUrl.startsWith("/api/")) {
         const reqseg = reqUrl.slice(5);
-        if(reqseg.startsWith("neo-retropad/")) {
-            return path.resolve(__dirname, "..", "neo-retropad", reqseg.substring(13));
-        }
-        return undefined;
+        const tmpl = templates.find((t) => reqseg.startsWith(t + "/"));
+        if(!tmpl) { return undefined; }
+
+        return path.resolve(__dirname, "..", tmpl, reqseg.substring(tmpl.length + 1));
     } else {
         return path.join(__dirname, "public", reqUrl.substring(1));
+    }
+}
+
+
+
+const reqHandlers = {
+    "/api/templates": (_req, res) => {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(templates));
     }
 }
 
@@ -43,6 +56,8 @@ function sendStatusMessage(res, status, message) {
 }
 const server = http.createServer(async (req, res) => {
     console.log(`[${req.method}] ${req.url}`);
+    if(req.url in reqHandlers) { return reqHandlers[req.url](req, res); }
+
     const filepath = getFilePath(req.url);
     console.log(`    -> ${filepath}`);
     if(!filepath) {

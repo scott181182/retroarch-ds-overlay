@@ -27,6 +27,10 @@
                 border: 1px solid blue;
                 cursor: pointer;
             }
+
+            .ds-screen {
+                border: 1px solid red;
+            }
         </style>
     </head>
     <body>
@@ -36,13 +40,17 @@
                     <div class="card">
                         <div class="card-body">
                             <form>
-                                <div>
+                                <div class="mb-3">
                                     <label for="form-template" class="form-label">Template</label>
                                     <select class="form-select" id="form-template">
-                                        <option selected>Select a template...</option>
+                                        <option value="" selected disabled>Select a template...</option>
                                         <option value="neo-retropad">Neo-Retropad</option>
+                                        <option value="ds-retropad">DS-Retropad</option>
                                         <option value="">Blank</option>
                                     </select>
+                                </div>
+                                <div>
+                                    <button id="refresh-btn" class="btn btn-secondary" type="button">Refresh</button>
                                 </div>
                             </form>
                         </div>
