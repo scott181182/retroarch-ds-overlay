@@ -35,13 +35,13 @@
     </head>
     <body>
         <main class="container">
-            <section class="row">
-                <article class="col col-12">
+            <section class="row mt-3">
+                <article class="col-12">
                     <div class="card">
                         <div class="card-body">
-                            <form>
-                                <div class="mb-3">
-                                    <label for="form-template" class="form-label">Template</label>
+                            <form class="row">
+                                <label for="form-template" class="form-label col-2 col-form-label">Template</label>
+                                <div class="col-8">
                                     <select class="form-select" id="form-template">
                                         <option value="" selected disabled>Select a template...</option>
                                         <option value="neo-retropad">Neo-Retropad</option>
@@ -49,7 +49,7 @@
                                         <option value="">Blank</option>
                                     </select>
                                 </div>
-                                <div>
+                                <div class="col-2">
                                     <button id="refresh-btn" class="btn btn-secondary" type="button">Refresh</button>
                                 </div>
                             </form>
@@ -57,11 +57,33 @@
                     </div>
                 </article>
             </section>
-            <section class="row overlay-row">
+            <section class="row mt-3">
+                <article class="col-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <form>
+                                <div class="row row-cols-auto mb-2">
+                                    <label for="form-screen-width" class="form-label col-form-label">Screen Width</label>
+                                    <div class="col">
+                                        <input class="form-control" id="form-screen-width" type="number"/>
+                                    </div>
+                                </div>
+                                <div class="row row-cols-auto">
+                                    <label for="form-screen-height" class="form-label col-form-label">Screen Height</label>
+                                    <div class="col">
+                                        <input class="form-control" id="form-screen-height" type="number"/>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </article>
+            </section>
+            <section class="row overlay-row my-3">
                 <article class="col col-4">
                     <div class="editor" id="config-source"></div>
                 </article>
-                <article class="col col-8">
+                <article id="canvas-container" class="col col-8">
                     <div id="overlay-canvas"></div>
                 </article>
             </section>

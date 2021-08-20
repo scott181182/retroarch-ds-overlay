@@ -8,7 +8,7 @@ editor.session.setMode("ace/mode/toml");
 
 editor.on("change", () => compileOverlays(editor.getValue()));
 let currentTemplate = undefined;
-/** @type {Overlay[] & { template: string }} */
+/** @type {InputOverlay} */
 let overlays = [];
 let activeOverlayIndex = -1;
 /** @type {Overlay | null} */
@@ -33,6 +33,30 @@ document.getElementById("refresh-btn").addEventListener("click", () => {
     }
 });
 
+document.getElementById("form-screen-width").addEventListener("input", (ev) => {
+    const value = ev.target.value;
+    screen.width = value;
+    renderActiveOverlay();
+    // document.getElementById("overlay-canvas").style.width = `${value}px`;
+});
+document.getElementById("form-screen-height").addEventListener("input", (ev) => {
+    const value = ev.target.value;
+    screen.height = value;
+    renderActiveOverlay();
+    // document.getElementById("overlay-canvas").style.height = `${value}px`;
+});
+
+function getCanvasWidth()  { return document.getElementById("overlay-canvas").clientWidth;  }
+function getCanvasHeight() { return document.getElementById("overlay-canvas").clientHeight; }
+function setCanvasHeight(value) {
+    document.getElementById("overlay-canvas").style.height = `${value}px`;
+    document.getElementById("form-screen-height").value = value;
+}
+
+const screen = {
+    width: 0,
+    height: 0
+};
 
 
 
@@ -45,14 +69,16 @@ async function loadTemplate(name) {
 }
 
 function compileOverlays(src) {
-    const config = OverlayConfig.parse(src);
-    overlays = config.toOverlays(currentTemplate);
+    overlays = InputOverlay.parse(src);
     console.log(overlays);
 
-    if(activeOverlayIndex < 0 || activeOverlayIndex >= overlays.length) {
+    if(activeOverlayIndex < 0 || activeOverlayIndex >= overlays.getOverlayCount()) {
         activeOverlayIndex = 0;
     }
-    activeOverlay = overlays[activeOverlayIndex];
+    activeOverlay = overlays.getOverlay(activeOverlayIndex);
+    if(activeOverlay) {
+        setCanvasHeight(getCanvasWidth() / activeOverlay.getAspectRatio());
+    }
     renderActiveOverlay();
 }
 
@@ -60,9 +86,9 @@ function compileOverlays(src) {
 
 
 
-const overlay2screen = (coord) => ({
-    x: coord.x * document.getElementById("overlay-canvas").clientWidth,
-    y: coord.y * document.getElementById("overlay-canvas").clientHeight
+const overlay2screen = (coord, normalized) => ({
+    x: (normalized ? coord.x : coord.x / getCanvasWidth())  * document.getElementById("overlay-canvas").clientWidth,
+    y: (normalized ? coord.y : coord.y / getCanvasHeight()) * document.getElementById("overlay-canvas").clientHeight
 });
 
 
@@ -71,9 +97,9 @@ function renderActiveOverlay()
 {
     const canvas = document.getElementById("overlay-canvas");
     canvas.innerHTML = "";
+    canvas.style.opacity = Overlay.DEFAULTS.opacity;
     if(!activeOverlay) { return; }
 
-    canvas.style.height = `${canvas.clientWidth / activeOverlay.aspectRatio}px`;
     appendDSBoxes(canvas);
 
     // TODO: handle overlay properties.
@@ -81,7 +107,7 @@ function renderActiveOverlay()
         const img = document.createElement("img");
         img.src = `/api/${currentTemplate}/${activeOverlay.image}`;
         img.style.position = "absolute";
-        const imgRect = activeOverlay.imageRect.scale(canvas.clientWidth, canvas.clientHeight);
+        const imgRect = activeOverlay.getImageRect().scale(canvas.clientWidth, canvas.clientHeight);
         img.style.left   = `${imgRect.x}px`;
         img.style.top    = `${imgRect.y}px`;
         img.style.width  = `${imgRect.width}px`;
@@ -94,8 +120,8 @@ function renderActiveOverlay()
 
         const div = document.createElement("div");
         div.style.position = "absolute";
-        const center = overlay2screen({ x: desc.x, y: desc.y });
-        const range = overlay2screen({ x: desc.rx, y: desc.ry });
+        const center = desc.getNormalized() ? overlay2screen({ x: desc.x,  y: desc.y  }) : { x: desc.x,  y: desc.y  };
+        const range  = desc.getNormalized() ? overlay2screen({ x: desc.rx, y: desc.ry }) : { x: desc.rx, y: desc.ry };
         div.style.left   = `${center.x - range.x}px`;
         div.style.top    = `${center.y - range.y}px`;
         div.style.width  = `${range.x * 2}px`;
@@ -137,12 +163,12 @@ function renderActiveOverlay()
 }
 function switchOverlay(name) {
     console.log(`Next Layout: ${name}`);
-    activeOverlayIndex = overlays.findIndex((ov) => ov.name === name);
+    activeOverlayIndex = overlays.getOverlayIndex(name);
     if(activeOverlayIndex < 0) {
         console.error(`Cannot find overlay for '${name}'`);
         return;
     }
-    activeOverlay = overlays[activeOverlayIndex];
+    activeOverlay = overlays.getOverlay(activeOverlayIndex);
     renderActiveOverlay();
 }
 
@@ -160,17 +186,17 @@ function appendDSBoxes(canvas) {
     if(canvas.clientWidth < canvas.clientHeight) {
         width = canvas.clientWidth;
         height = width / DS_ASPECT_RATIO;
-        
+
         topDiv.style.left = "0";
         botDiv.style.left = "0";
     } else {
         height = canvas.clientHeight / 2;
         width = height * DS_ASPECT_RATIO;
-        
+
         topDiv.style.left = `${(canvas.clientWidth - width) / 2}px`;
         botDiv.style.left = `${(canvas.clientWidth - width) / 2}px`;
     }
-    
+
     topDiv.style.top = "0";
     topDiv.style.width  = `${width}px`;
     topDiv.style.height = `${height}px`;
